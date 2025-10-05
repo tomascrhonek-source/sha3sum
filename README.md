@@ -11,3 +11,12 @@ database:
     password: changeme
     port: 5432
     user: dbuser
+
+## Usage
+
+sha3sum -debug -timing
+
+Where:
+- debug - print debug messages (a lot)
+- timming - prints times during the operations, usefull for benchmarking
+
