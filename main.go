@@ -53,7 +53,7 @@ func computeHash(path string, ch chan entry) {
 }
 
 func dbConnect() *sql.DB {
-	connStr := "user=tomas dbname=tomas host=192.168.42.188 password='bk9qqmzB6E16dBGTS6gkvTrX' sslmode=disable"
+	connStr := "user=tomas dbname=tomas host=192.168.42.188 password='pass' sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -133,3 +133,4 @@ func main() {
 		log.Println("sha3sum finished")
 	}
 }
+
