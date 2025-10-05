@@ -1,1 +1,2 @@
-Try with threads
+* Try with threads
+* Config file for database connection
