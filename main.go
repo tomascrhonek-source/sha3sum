@@ -8,7 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/spf13/viper"
@@ -51,8 +53,14 @@ func computeHash(path string, ch chan entry) {
 }
 
 func dbConnect() *sql.DB {
-	connStr := "user=" + dbUser + " dbname=" + dbName + " host=" + dbHost + " password=" + dbPassword + " sslmode=disable"
+	connStr := "user=tomas dbname=tomas host=185.156.37.17 password='gKSGetXshQbd69Qte85LROSG' sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Test connection
+	err = db.Ping()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -65,6 +73,9 @@ var dbUser string
 var dbPassword string
 var dbHost string
 var dbPort int
+var logging *bool
+var timming *bool
+var root *string
 
 func config() {
 	viper.SetConfigName("config")
@@ -78,6 +89,12 @@ func config() {
 		viper.Set("database.user", "dbuser")
 		viper.Set("database.password", "dbpassword")
 		viper.Set("database.dbname", "dbname")
+
+		viper.Set("config.debug", false)
+		viper.Set("config.timming", false)
+		viper.Set("config.root", ".")
+		viper.Set("threading", true)
+
 		viper.SafeWriteConfig()
 	}
 
@@ -89,16 +106,33 @@ func config() {
 	dbUser = viper.GetString("database.user")
 	dbPassword = viper.GetString("database.password")
 	dbName = viper.GetString("database.dbname")
+
+	logging = new(bool)
+	timming = new(bool)
+	root = new(string)
+	*logging = viper.GetBool("config.debug")
+	*timming = viper.GetBool("config.timming")
+	*root = viper.GetString("config.root")
 }
 
 func main() {
-	logging := flag.Bool("debug", false, "Enable debug")
-	timming := flag.Bool("timming", false, "Enable timming")
-	root := flag.String("root", ".", "Root directory")
+	cmdLogging := flag.Bool("debug", false, "Enable debug")
+	cmdTimming := flag.Bool("timming", false, "Enable timming")
+	cmdRoot := flag.String("root", ".", "Root directory")
 
 	flag.Parse()
 
 	config()
+
+	if *cmdLogging == true {
+		logging = cmdLogging
+	}
+	if *cmdTimming == true {
+		timming = cmdTimming
+	}
+	if *cmdRoot != "." {
+		root = cmdRoot
+	}
 
 	timeStart := time.Now()
 	if *timming {
@@ -118,7 +152,31 @@ func main() {
 	db := dbConnect()
 	defer db.Close()
 
-	ch := make(chan entry, 10000000)
+	ch := make(chan entry, runtime.NumCPU())
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go walkDirectoryTree(root, logging, ch)
+	wg.Done()
+	saveToDB(db, ch, logging)
+	wg.Wait()
+
+	timeEnd := time.Now()
+	if *timming {
+		log.Println("End:", timeEnd)
+		log.Println("Duration:", timeEnd.Sub(timeStart))
+		log.Println("sha3sum finished")
+	}
+}
+
+func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
+	wg := sync.WaitGroup{}
+	cpus := runtime.NumCPU()
+	if viper.GetBool("config.threading") {
+		runtime.GOMAXPROCS(cpus)
+		if *logging {
+			log.Println("Threading enabled, using", cpus, "CPUs")
+		}
+	}
 
 	err := filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -135,7 +193,15 @@ func main() {
 		}
 
 		if fi.IsDir() == false {
-			computeHash(path, ch)
+			func() {
+				if viper.GetBool("config.threading") {
+					wg.Add(1)
+				}
+				computeHash(path, ch)
+				if viper.GetBool("config.threading") {
+					wg.Done()
+				}
+			}()
 		}
 
 		return nil
@@ -144,11 +210,18 @@ func main() {
 		log.Println("Error:", err)
 	}
 
+	wg.Wait()
 	close(ch)
+}
+
+func saveToDB(db *sql.DB, ch chan entry, logging *bool) {
+	if *logging {
+		log.Println("Saving to database")
+	}
 
 	for range ch {
 		e := <-ch
-		_, err = db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", e.path, hex.EncodeToString(e.hash), e.size)
+		_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", e.path, hex.EncodeToString(e.hash), e.size)
 		if err != nil {
 			log.Println("Error:", err)
 		}
@@ -157,14 +230,7 @@ func main() {
 		}
 	}
 
-	if err != nil {
-		log.Println("Error:", err)
-	}
-
-	timeEnd := time.Now()
-	if *timming {
-		log.Println("End:", timeEnd)
-		log.Println("Duration:", timeEnd.Sub(timeStart))
-		log.Println("sha3sum finished")
+	if *logging {
+		log.Println("All entries inserted")
 	}
 }
