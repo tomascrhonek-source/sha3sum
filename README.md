@@ -14,10 +14,10 @@ database:
 
 ## Usage
 
-sha3sum -debug -timming root
+sha3sum -debug -timming -root dir
 
 Where:
-root - the root directory of the tree with files
+- root - the root directory of the tree with files
 - debug - print debug messages (a lot)
 - timming - prints times during the operations, usefull for benchmarking
 
