@@ -53,7 +53,7 @@ func computeHash(path string, ch chan entry) {
 }
 
 func dbConnect() *sql.DB {
-	connStr := "user=tomas dbname=tomas host=185.156.37.17 password='gKSGetXshQbd69Qte85LROSG' sslmode=disable"
+	connStr := "user=tomas dbname=tomas host=185.156.37.17 password='pass' sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
