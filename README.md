@@ -5,12 +5,12 @@ sha3sum uses PostgreSQL database for store the sums of the files. This is import
 
 The database config is in file confing.yaml in root of the repository. You can change it in the code. Feel free to do.
 
-database:
-    dbname: dbname
-    host: localhost
-    password: changeme
-    port: 5432
-    user: dbuser
+    database:
+        dbname: dbname
+        host: localhost
+        password: changeme
+        port: 5432
+        user: dbuser
 
 ## Usage
 
@@ -20,4 +20,5 @@ Where:
 - root - the root directory of the tree with files
 - debug - print debug messages (a lot)
 - timming - prints times during the operations, usefull for benchmarking
+
 
