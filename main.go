@@ -80,6 +80,7 @@ var dbHost string
 var dbPort int
 var logging *bool
 var timming *bool
+var threading *bool
 var root *string
 
 func config() {
@@ -123,6 +124,7 @@ func config() {
 func main() {
 	cmdLogging := flag.Bool("debug", false, "Enable debug")
 	cmdTimming := flag.Bool("timming", false, "Enable timming")
+	cmdThreading := flag.Bool("threading", false, "Enable threading")
 	cmdRoot := flag.String("root", ".", "Root directory")
 
 	flag.Parse()
@@ -137,6 +139,9 @@ func main() {
 	}
 	if *cmdRoot != "." {
 		root = cmdRoot
+	}
+	if *cmdThreading == true {
+		threading = cmdThreading
 	}
 
 	if *logging {
