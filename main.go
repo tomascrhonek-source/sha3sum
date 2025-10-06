@@ -87,7 +87,7 @@ func config() {
 	viper.SetConfigName("sha3sum")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("$HOME/.config/")
-	
+
 	err := viper.ReadInConfig()
 	if err != nil {
 		viper.Set("database.host", "localhost")
@@ -185,11 +185,11 @@ func main() {
 
 func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
 	wg := sync.WaitGroup{}
-	cpus := runtime.NumCPU()
+	defer wg.Wait()
+
 	if viper.GetBool("config.threading") {
-		runtime.GOMAXPROCS(cpus)
 		if *logging {
-			log.Println("Threading enabled, using", cpus, "CPUs")
+			log.Println("Threading enabled, using", runtime.NumCPU(), "CPUs")
 		}
 	}
 
@@ -208,15 +208,15 @@ func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
 		}
 
 		if fi.IsDir() == false {
-			func() {
-				if viper.GetBool("config.threading") {
+			if viper.GetBool("config.threading") {
+				go func() {
 					wg.Add(1)
-				}
-				computeHash(path, ch)
-				if viper.GetBool("config.threading") {
+					computeHash(path, ch)
 					wg.Done()
-				}
-			}()
+				}()
+			} else {
+				computeHash(path, ch)
+			}
 		}
 
 		return nil
@@ -225,7 +225,6 @@ func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
 		log.Println("Error:", err)
 	}
 
-	wg.Wait()
 	close(ch)
 }
 
