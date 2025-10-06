@@ -84,10 +84,10 @@ var threading *bool
 var root *string
 
 func config() {
-	viper.SetConfigName("config")
+	viper.SetConfigName("sha3sum")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-
+	viper.AddConfigPath("$HOME/.config/")
+	
 	err := viper.ReadInConfig()
 	if err != nil {
 		viper.Set("database.host", "localhost")
