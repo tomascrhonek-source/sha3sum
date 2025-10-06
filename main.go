@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -53,7 +54,11 @@ func computeHash(path string, ch chan entry) {
 }
 
 func dbConnect() *sql.DB {
-	connStr := "user=tomas dbname=tomas host=185.156.37.17 password='pass' sslmode=disable"
+	connStr := fmt.Sprintf("user=%s dbname=%s host=%s password='%s' port=%d sslmode=disable",
+		dbUser, dbName, dbHost, dbPassword, dbPort)
+	if *logging {
+		log.Println("Connecting to database:", connStr)
+	}
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -132,6 +137,11 @@ func main() {
 	}
 	if *cmdRoot != "." {
 		root = cmdRoot
+	}
+
+	if *logging {
+		log.Println("Debug enabled")
+		log.Println("Root directory:", *root)
 	}
 
 	timeStart := time.Now()
