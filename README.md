@@ -21,12 +21,15 @@ The database config is in file confing.yaml in root of the repository. You can c
 
 ## Usage
 
-sha3sum -debug -timming -root dir
+sha3sum -debug -timming -threading -root dir
+
+Flags arguments have priority prior the config.yaml file.
 
 Where:
 - root - the root directory of the tree with files
 - debug - print debug messages (a lot)
 - timming - prints times during the operations, usefull for benchmarking
+- threading - computer sha3 sums in parallel
 
 
 
