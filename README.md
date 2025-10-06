@@ -11,6 +11,10 @@ The database config is in file confing.yaml in root of the repository. You can c
         password: changeme
         port: 5432
         user: dbuser
+    config:
+        root: "."
+        debug: false
+        timming: false
 
 ## Usage
 
@@ -20,5 +24,6 @@ Where:
 - root - the root directory of the tree with files
 - debug - print debug messages (a lot)
 - timming - prints times during the operations, usefull for benchmarking
+
 
 
