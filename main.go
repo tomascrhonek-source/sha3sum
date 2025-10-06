@@ -98,7 +98,7 @@ func config() {
 		viper.Set("config.debug", false)
 		viper.Set("config.timming", false)
 		viper.Set("config.root", ".")
-		viper.Set("threading", true)
+		viper.Set("config.threading", true)
 
 		viper.SafeWriteConfig()
 	}
