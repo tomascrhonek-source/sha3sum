@@ -201,11 +201,9 @@ func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
 
 		if fi.IsDir() == false {
 			if viper.GetBool("config.threading") {
-				go func() {
-					wg.Add(1)
+				wg.Go(func() {
 					computeHash(path, ch)
-					wg.Done()
-				}()
+				})
 			} else {
 				computeHash(path, ch)
 			}
