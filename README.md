@@ -3,6 +3,8 @@ Program for summing files using the sha3 standard. Like the unix standard shasum
 
 sha3sum uses PostgreSQL database for store the sums of the files. This is important for summing files accros the network.
 
+You can enable threading for computing sha3 in parallel, usefull for big files and fast storage.
+
 The database config is in file confing.yaml in root of the repository. You can change it in the code. Feel free to do.
 
     database:
@@ -15,6 +17,7 @@ The database config is in file confing.yaml in root of the repository. You can c
         root: "."
         debug: false
         timming: false
+        threading: false
 
 ## Usage
 
