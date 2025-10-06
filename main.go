@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,31 +27,22 @@ type entry struct {
 }
 
 func computeHash(path string, ch chan entry) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		log.Fatal(err)
-	}
 	f, err := os.OpenFile(path, os.O_RDONLY, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
 
-	size := fi.Size()
-	buffer := make([]byte, size)
-	n, err := f.Read(buffer)
+	hash := sha3.New512()
+
+	written, err := io.Copy(hash, f)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if int64(n) != size {
-		log.Fatalf("Read %d bytes, expected %d bytes", n, size)
-	}
 
-	hash := sha3.New512()
-	hash.Write(buffer)
 	bs := hash.Sum(nil)
 
-	ch <- entry{path: path, hash: bs, size: size}
+	ch <- entry{path: path, hash: bs, size: written}
 }
 
 func dbConnect() *sql.DB {
