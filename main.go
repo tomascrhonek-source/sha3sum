@@ -159,7 +159,7 @@ func main() {
 	db := dbConnect()
 	defer db.Close()
 
-	ch := make(chan entry, runtime.NumCPU())
+	ch := make(chan entry)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go walkDirectoryTree(root, logging, ch)
