@@ -26,45 +26,6 @@ type entry struct {
 	size int64
 }
 
-func computeHash(path string, ch chan entry) {
-	f, err := os.OpenFile(path, os.O_RDONLY, 0755)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	hash := sha3.New512()
-
-	written, err := io.Copy(hash, f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bs := hash.Sum(nil)
-
-	ch <- entry{path: path, hash: bs, size: written}
-}
-
-func dbConnect() *sql.DB {
-	connStr := fmt.Sprintf("user=%s dbname=%s host=%s password='%s' port=%d sslmode=disable",
-		dbUser, dbName, dbHost, dbPassword, dbPort)
-	if *logging {
-		log.Println("Connecting to database:", connStr)
-	}
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Test connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return db
-}
-
 var dbName string
 var dbUser string
 var dbPassword string
@@ -159,13 +120,7 @@ func main() {
 	db := dbConnect()
 	defer db.Close()
 
-	ch := make(chan entry)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go walkDirectoryTree(root, logging, ch)
-	wg.Done()
-	saveToDB(db, ch, logging)
-	wg.Wait()
+	walkDirectoryTree(root, logging, db)
 
 	timeEnd := time.Now()
 	if *timming {
@@ -175,15 +130,14 @@ func main() {
 	}
 }
 
-func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
-	wg := sync.WaitGroup{}
-	defer wg.Wait()
-
+func walkDirectoryTree(root *string, logging *bool, db *sql.DB) {
 	if viper.GetBool("config.threading") {
 		if *logging {
 			log.Println("Threading enabled, using", runtime.NumCPU(), "CPUs")
 		}
 	}
+
+	wg := sync.WaitGroup{}
 
 	err := filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -202,10 +156,12 @@ func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
 		if fi.IsDir() == false {
 			if viper.GetBool("config.threading") {
 				wg.Go(func() {
-					computeHash(path, ch)
+					entry := computeHash(path)
+					saveToDB(db, entry, logging)
 				})
 			} else {
-				computeHash(path, ch)
+				entry := computeHash(path)
+				saveToDB(db, entry, logging)
 			}
 		}
 
@@ -214,27 +170,58 @@ func walkDirectoryTree(root *string, logging *bool, ch chan entry) {
 	if err != nil {
 		log.Println("Error:", err)
 	}
-
-	close(ch)
+	wg.Wait()
 }
 
-func saveToDB(db *sql.DB, ch chan entry, logging *bool) {
-	if *logging {
-		log.Println("Saving to database")
+func saveToDB(db *sql.DB, entry entry, logging *bool) {
+	_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", entry.path, hex.EncodeToString(entry.hash), entry.size)
+	if err != nil {
+		log.Println("Error:", err)
 	}
-
-	for range ch {
-		e := <-ch
-		_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", e.path, hex.EncodeToString(e.hash), e.size)
-		if err != nil {
-			log.Println("Error:", err)
-		}
-		if *logging {
-			log.Println("Inserted:", e.path)
-		}
+	if *logging {
+		log.Println("Inserted:", entry.path)
 	}
 
 	if *logging {
 		log.Println("All entries inserted")
 	}
+}
+
+func computeHash(path string) entry {
+	f, err := os.OpenFile(path, os.O_RDONLY, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	hash := sha3.New512()
+
+	written, err := io.Copy(hash, f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bs := hash.Sum(nil)
+
+	return entry{path: path, hash: bs, size: written}
+}
+
+func dbConnect() *sql.DB {
+	connStr := fmt.Sprintf("user=%s dbname=%s host=%s password='%s' port=%d sslmode=disable",
+		dbUser, dbName, dbHost, dbPassword, dbPort)
+	if *logging {
+		log.Println("Connecting to database:", connStr)
+	}
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Test connection
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return db
 }
