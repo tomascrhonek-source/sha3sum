@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/spf13/viper"
@@ -26,15 +25,16 @@ type entry struct {
 }
 
 type config struct {
-	dbName     string
-	dbUser     string
-	dbPassword string
-	dbHost     string
-	dbPort     int
-	logging    *bool
-	timming    *bool
-	nodb       *bool
-	root       *string
+	dbName         string
+	dbUser         string
+	dbPassword     string
+	dbHost         string
+	dbPort         int
+	logging        *bool
+	timming        *bool
+	nodb           *bool
+	maxConnections int
+	root           *string
 }
 
 func configure() config {
@@ -53,6 +53,7 @@ func configure() config {
 		viper.Set("config.debug", false)
 		viper.Set("config.timming", false)
 		viper.Set("config.root", ".")
+		viper.Set("config.maxconnections", 10)
 		viper.Set("config.nodb", false)
 
 		viper.SafeWriteConfig()
@@ -72,6 +73,10 @@ func configure() config {
 	cfg.timming = new(bool)
 	cfg.nodb = new(bool)
 	cfg.root = new(string)
+	cfg.maxConnections, err = strconv.Atoi(viper.GetString("config.maxconnections"))
+	if err != nil {
+		cfg.maxConnections = 10
+	}
 	*cfg.logging = viper.GetBool("config.debug")
 	*cfg.timming = viper.GetBool("config.timming")
 	*cfg.nodb = viper.GetBool("config.nodb")
@@ -137,9 +142,6 @@ func main() {
 }
 
 func walkDirectoryTree(cfg config, db *sql.DB) {
-	wg := sync.WaitGroup{}
-	defer wg.Wait()
-
 	err := filepath.Walk(*cfg.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -155,14 +157,12 @@ func walkDirectoryTree(cfg config, db *sql.DB) {
 		}
 
 		if fi.IsDir() == false {
-			wg.Go(func() {
-				entry := computeHash(path)
-				if *cfg.nodb {
-					fmt.Println(hex.EncodeToString(entry.hash), entry.path)
-				} else {
-					saveToDB(db, entry, cfg.logging)
-				}
-			})
+			entry := computeHash(path)
+			if *cfg.nodb {
+				fmt.Println(hex.EncodeToString(entry.hash), entry.path)
+			} else {
+				saveToDB(db, entry, cfg.logging)
+			}
 		}
 
 		return nil
