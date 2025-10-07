@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -26,17 +25,19 @@ type entry struct {
 	size int64
 }
 
-var dbName string
-var dbUser string
-var dbPassword string
-var dbHost string
-var dbPort int
-var logging *bool
-var timming *bool
-var threading *bool
-var root *string
+type config struct {
+	dbName     string
+	dbUser     string
+	dbPassword string
+	dbHost     string
+	dbPort     int
+	logging    *bool
+	timming    *bool
+	nodb       *bool
+	root       *string
+}
 
-func config() {
+func configure() config {
 	viper.SetConfigName("sha3sum")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("$HOME/.config/")
@@ -52,99 +53,99 @@ func config() {
 		viper.Set("config.debug", false)
 		viper.Set("config.timming", false)
 		viper.Set("config.root", ".")
-		viper.Set("config.threading", true)
+		viper.Set("config.nodb", false)
 
 		viper.SafeWriteConfig()
 	}
 
-	dbHost = viper.GetString("database.host")
-	dbPort, err = strconv.Atoi(viper.GetString("database.port"))
+	cfg := config{}
+	cfg.dbHost = viper.GetString("database.host")
+	cfg.dbPort, err = strconv.Atoi(viper.GetString("database.port"))
 	if err != nil {
-		dbPort = 5432
+		cfg.dbPort = 5432
 	}
-	dbUser = viper.GetString("database.user")
-	dbPassword = viper.GetString("database.password")
-	dbName = viper.GetString("database.dbname")
+	cfg.dbUser = viper.GetString("database.user")
+	cfg.dbPassword = viper.GetString("database.password")
+	cfg.dbName = viper.GetString("database.dbname")
 
-	logging = new(bool)
-	timming = new(bool)
-	root = new(string)
-	*logging = viper.GetBool("config.debug")
-	*timming = viper.GetBool("config.timming")
-	*root = viper.GetString("config.root")
+	cfg.logging = new(bool)
+	cfg.timming = new(bool)
+	cfg.nodb = new(bool)
+	cfg.root = new(string)
+	*cfg.logging = viper.GetBool("config.debug")
+	*cfg.timming = viper.GetBool("config.timming")
+	*cfg.nodb = viper.GetBool("config.nodb")
+	*cfg.root = viper.GetString("config.root")
+
+	return cfg
 }
 
 func main() {
 	cmdLogging := flag.Bool("debug", false, "Enable debug")
 	cmdTimming := flag.Bool("timming", false, "Enable timming")
-	cmdThreading := flag.Bool("threading", false, "Enable threading")
+	cmdNoDB := flag.Bool("nodb", false, "Disable connection to the database")
 	cmdRoot := flag.String("root", ".", "Root directory")
 
 	flag.Parse()
 
-	config()
+	cfg := configure()
 
 	if *cmdLogging == true {
-		logging = cmdLogging
+		cfg.logging = cmdLogging
 	}
 	if *cmdTimming == true {
-		timming = cmdTimming
+		cfg.timming = cmdTimming
 	}
 	if *cmdRoot != "." {
-		root = cmdRoot
+		cfg.root = cmdRoot
 	}
-	if *cmdThreading == true {
-		threading = cmdThreading
+	if *cmdNoDB == true {
+		cfg.nodb = cmdNoDB
 	}
 
-	if *logging {
+	if *cfg.logging {
 		log.Println("Debug enabled")
-		log.Println("Root directory:", *root)
+		log.Println("Root directory:", *cfg.root)
 	}
 
 	timeStart := time.Now()
-	if *timming {
+	if *cfg.timming {
 		log.Println("Timming enabled")
 		log.Println("Start:", timeStart)
 	}
 
-	if *logging {
+	if *cfg.logging {
 		log.SetOutput(os.Stderr)
 		log.Println("sha3sum started")
 	}
 
-	if *logging {
+	if *cfg.logging {
 		log.Println("Start:", timeStart)
 	}
 
-	db := dbConnect()
+	db := dbConnect(cfg)
 	defer db.Close()
 
-	walkDirectoryTree(root, logging, db)
+	walkDirectoryTree(cfg, db)
 
 	timeEnd := time.Now()
-	if *timming {
+	if *cfg.timming {
 		log.Println("End:", timeEnd)
 		log.Println("Duration:", timeEnd.Sub(timeStart))
 		log.Println("sha3sum finished")
 	}
 }
 
-func walkDirectoryTree(root *string, logging *bool, db *sql.DB) {
-	if viper.GetBool("config.threading") {
-		if *logging {
-			log.Println("Threading enabled, using", runtime.NumCPU(), "CPUs")
-		}
-	}
-
+func walkDirectoryTree(cfg config, db *sql.DB) {
 	wg := sync.WaitGroup{}
+	defer wg.Wait()
 
-	err := filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(*cfg.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if *logging {
+		if *cfg.logging {
 			log.Println(path)
 		}
 
@@ -154,15 +155,14 @@ func walkDirectoryTree(root *string, logging *bool, db *sql.DB) {
 		}
 
 		if fi.IsDir() == false {
-			if viper.GetBool("config.threading") {
-				wg.Go(func() {
-					entry := computeHash(path)
-					saveToDB(db, entry, logging)
-				})
-			} else {
+			wg.Go(func() {
 				entry := computeHash(path)
-				saveToDB(db, entry, logging)
-			}
+				if *cfg.nodb {
+					fmt.Println(hex.EncodeToString(entry.hash), entry.path)
+				} else {
+					saveToDB(db, entry, cfg.logging)
+				}
+			})
 		}
 
 		return nil
@@ -170,7 +170,6 @@ func walkDirectoryTree(root *string, logging *bool, db *sql.DB) {
 	if err != nil {
 		log.Println("Error:", err)
 	}
-	wg.Wait()
 }
 
 func saveToDB(db *sql.DB, entry entry, logging *bool) {
@@ -206,10 +205,10 @@ func computeHash(path string) entry {
 	return entry{path: path, hash: bs, size: written}
 }
 
-func dbConnect() *sql.DB {
+func dbConnect(cfg config) *sql.DB {
 	connStr := fmt.Sprintf("user=%s dbname=%s host=%s password='%s' port=%d sslmode=disable",
-		dbUser, dbName, dbHost, dbPassword, dbPort)
-	if *logging {
+		cfg.dbUser, cfg.dbName, cfg.dbHost, cfg.dbPassword, cfg.dbPort)
+	if *cfg.logging {
 		log.Println("Connecting to database:", connStr)
 	}
 	db, err := sql.Open("postgres", connStr)
