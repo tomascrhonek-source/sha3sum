@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/sha3"
-	"database/sql"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -12,10 +11,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	_ "net/http/pprof"
-
-	_ "github.com/lib/pq"
 )
 
 type entry struct {
@@ -123,23 +118,6 @@ func walkDirectoryTree(cfg config) {
 	}
 }
 
-func saveToDB(db *sql.DB, logging *bool) {
-	pool.Range(func(key any, value any) bool {
-		_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", value.(entry).path, hex.EncodeToString(value.(entry).hash), value.(entry).size)
-		if err != nil {
-			log.Println("Error:", err)
-		}
-		if *logging {
-			log.Println("Inserted:", value.(entry).path)
-		}
-
-		if *logging {
-			log.Println("All entries inserted")
-		}
-		return true
-	})
-}
-
 func computeHash(path string) entry {
 	f, err := os.OpenFile(path, os.O_RDONLY, 0755)
 	if err != nil {
@@ -157,24 +135,4 @@ func computeHash(path string) entry {
 	bs := hash.Sum(nil)
 
 	return entry{path: path, hash: bs, size: written}
-}
-
-func dbConnect(cfg config) *sql.DB {
-	connStr := fmt.Sprintf("user=%s dbname=%s host=%s password='%s' port=%d sslmode=disable",
-		cfg.dbUser, cfg.dbName, cfg.dbHost, cfg.dbPassword, cfg.dbPort)
-	if *cfg.logging {
-		log.Println("Connecting to database:", connStr)
-	}
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Test connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return db
 }
