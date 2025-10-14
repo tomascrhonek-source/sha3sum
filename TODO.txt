@@ -1,2 +1,0 @@
-* Try with threads
-* Config file for database connection
