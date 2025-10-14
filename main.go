@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/spf13/viper"
@@ -35,6 +36,12 @@ type config struct {
 	nodb           *bool
 	maxConnections int
 	root           *string
+}
+
+var pool sync.Map
+
+func init() {
+	pool = sync.Map{}
 }
 
 func configure() config {
@@ -132,6 +139,7 @@ func main() {
 	defer db.Close()
 
 	walkDirectoryTree(cfg, db)
+	saveToDB(db, cfg.logging)
 
 	timeEnd := time.Now()
 	if *cfg.timming {
@@ -161,7 +169,7 @@ func walkDirectoryTree(cfg config, db *sql.DB) {
 			if *cfg.nodb {
 				fmt.Println(hex.EncodeToString(entry.hash), entry.path)
 			} else {
-				saveToDB(db, entry, cfg.logging)
+				pool.Store(entry.path, entry)
 			}
 		}
 
@@ -172,18 +180,21 @@ func walkDirectoryTree(cfg config, db *sql.DB) {
 	}
 }
 
-func saveToDB(db *sql.DB, entry entry, logging *bool) {
-	_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", entry.path, hex.EncodeToString(entry.hash), entry.size)
-	if err != nil {
-		log.Println("Error:", err)
-	}
-	if *logging {
-		log.Println("Inserted:", entry.path)
-	}
+func saveToDB(db *sql.DB, logging *bool) {
+	pool.Range(func(key any, value any) bool {
+		_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", value.(entry).path, hex.EncodeToString(value.(entry).hash), value.(entry).size)
+		if err != nil {
+			log.Println("Error:", err)
+		}
+		if *logging {
+			log.Println("Inserted:", value.(entry).path)
+		}
 
-	if *logging {
-		log.Println("All entries inserted")
-	}
+		if *logging {
+			log.Println("All entries inserted")
+		}
+		return true
+	})
 }
 
 func computeHash(path string) entry {
