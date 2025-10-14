@@ -17,11 +17,11 @@ The database config is in file ~/.config/sha3sum.yaml in root of the repository.
         root: "."
         debug: false
         timming: false
-        threading: false
+        nodb: false
 
 ## Usage
 
-sha3sum -debug -timming -threading -root dir
+sha3sum -debug -timming -nodb -root dir
 
 Flags arguments have priority prior the config.yaml file.
 
@@ -29,7 +29,7 @@ Where:
 - root - the root directory of the tree with files
 - debug - print debug messages (a lot)
 - timming - prints times during the operations, usefull for benchmarking
-- threading - computer sha3 sums in parallel
+- nodb - prints the sha3 sums on stdout and do not connect to the database
 
 
 
