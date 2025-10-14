@@ -30,10 +30,17 @@ func dbConnect(cfg config) *sql.DB {
 }
 
 func saveToDB(db *sql.DB, logging *bool) {
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Commit()
+
 	pool.Range(func(key any, value any) bool {
-		_, err := db.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", value.(entry).path, hex.EncodeToString(value.(entry).hash), value.(entry).size)
+		_, err := tx.Exec("INSERT INTO sha3sum (path, sum, size) VALUES ($1, $2, $3)", value.(entry).path, hex.EncodeToString(value.(entry).hash), value.(entry).size)
 		if err != nil {
 			log.Println("Error:", err)
+			tx.Rollback()
 		}
 		if *logging {
 			log.Println("Inserted:", value.(entry).path)
