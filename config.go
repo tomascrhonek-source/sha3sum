@@ -7,16 +7,15 @@ import (
 )
 
 type config struct {
-	dbName         string
-	dbUser         string
-	dbPassword     string
-	dbHost         string
-	dbPort         int
-	logging        *bool
-	timming        *bool
-	nodb           *bool
-	maxConnections int
-	root           *string
+	dbName     string
+	dbUser     string
+	dbPassword string
+	dbHost     string
+	dbPort     int
+	logging    *bool
+	timming    *bool
+	nodb       *bool
+	root       *string
 }
 
 func defaults() {
@@ -59,10 +58,6 @@ func configure() config {
 	cfg.timming = new(bool)
 	cfg.nodb = new(bool)
 	cfg.root = new(string)
-	cfg.maxConnections, err = strconv.Atoi(viper.GetString("config.maxconnections"))
-	if err != nil {
-		cfg.maxConnections = 10
-	}
 	*cfg.logging = viper.GetBool("config.debug")
 	*cfg.timming = viper.GetBool("config.timming")
 	*cfg.nodb = viper.GetBool("config.nodb")

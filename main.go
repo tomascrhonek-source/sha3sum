@@ -53,6 +53,10 @@ func main() {
 		log.Println("Root directory:", *cfg.root)
 	}
 
+	if *cfg.logging && *cfg.nodb {
+		log.Println("No database connection enabled")
+	}
+
 	timeStart := time.Now()
 	if *cfg.timming {
 		log.Println("Timming enabled")
