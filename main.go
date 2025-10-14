@@ -138,7 +138,7 @@ func main() {
 	db := dbConnect(cfg)
 	defer db.Close()
 
-	walkDirectoryTree(cfg, db)
+	walkDirectoryTree(cfg)
 	saveToDB(db, cfg.logging)
 
 	timeEnd := time.Now()
@@ -149,7 +149,10 @@ func main() {
 	}
 }
 
-func walkDirectoryTree(cfg config, db *sql.DB) {
+func walkDirectoryTree(cfg config) {
+	var wg sync.WaitGroup
+	wg = sync.WaitGroup{}
+
 	err := filepath.Walk(*cfg.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -165,12 +168,14 @@ func walkDirectoryTree(cfg config, db *sql.DB) {
 		}
 
 		if fi.IsDir() == false {
-			entry := computeHash(path)
-			if *cfg.nodb {
-				fmt.Println(hex.EncodeToString(entry.hash), entry.path)
-			} else {
-				pool.Store(entry.path, entry)
-			}
+			wg.Go(func() {
+				entry := computeHash(path)
+				if *cfg.nodb {
+					fmt.Println(hex.EncodeToString(entry.hash), entry.path)
+				} else {
+					pool.Store(entry.path, entry)
+				}
+			})
 		}
 
 		return nil
