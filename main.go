@@ -167,7 +167,7 @@ func walkDirectoryTree(cfg config) {
 			log.Fatal(err)
 		}
 
-		if fi.IsDir() == false {
+		if fi.Mode().IsRegular() {
 			wg.Go(func() {
 				entry := computeHash(path)
 				if *cfg.nodb {
