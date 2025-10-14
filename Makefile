@@ -3,8 +3,6 @@ build:
 	go build
 install:
 	go install
-run:
-	go vet
-	go build
+run: build
 	./sha3sum
 
