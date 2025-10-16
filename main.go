@@ -98,17 +98,22 @@ func walkDirectoryTree(cfg config) {
 	wg = sync.WaitGroup{}
 
 	err := filepath.Walk(*cfg.root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
 		if *cfg.logging {
 			log.Println(path)
 		}
 
+		lstat, err := os.Lstat(path)
+
+		if err != nil {
+			// Skip broken links or inaccessible files
+			log.Printf("Skipping: %s (error: %v)\n", lstat.Name(), err)
+			return err
+		}
+
 		fi, err := os.Stat(path)
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Stat error:", err)
+			return err
 		}
 
 		if fi.Mode().IsRegular() {
@@ -132,7 +137,7 @@ func walkDirectoryTree(cfg config) {
 func computeHash(path string) entry {
 	f, err := os.OpenFile(path, os.O_RDONLY, 0755)
 	if err != nil {
-		log.Fatal(err)
+		return entry{}
 	}
 	defer f.Close()
 
@@ -140,7 +145,7 @@ func computeHash(path string) entry {
 
 	written, err := io.Copy(hash, f)
 	if err != nil {
-		log.Fatal(err)
+		return entry{}
 	}
 
 	bs := hash.Sum(nil)

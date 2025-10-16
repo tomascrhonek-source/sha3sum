@@ -1,0 +1,11 @@
+[Unit]
+Description=Tool sha3sum
+
+[Service]
+Type=oneshot
+WorkingDirectory=/
+ExecStart=/usr/bin/sha3sum
+
+[Install]
+WantedBy=multi-user.target
+

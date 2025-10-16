@@ -1,0 +1,12 @@
+database:
+    dbname: db_name
+    host: pg_sql_db_host
+    password: change_me
+    port: 5432
+    user: dbuser_name
+config:
+    debug: false
+    threading: false
+    nodb: false
+    root: "."
+

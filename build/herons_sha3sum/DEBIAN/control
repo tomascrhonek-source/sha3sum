@@ -1,7 +1,0 @@
-Package: sha3sum
-Version: 1.0
-Section: utils
-Priority: optional
-Architecture: amd64
-Maintainer: Tomas Crhonek <tomascrhonek@gmail.com>
-Description: Tool for summing files using standard SHA-3
