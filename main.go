@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha3"
+	"database/sql"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -72,11 +73,17 @@ func main() {
 		log.Println("Start:", timeStart)
 	}
 
-	db := dbConnect(cfg)
-	defer db.Close()
+	var db *sql.DB
+
+	if !*cfg.nodb {
+		db = dbConnect(cfg)
+		defer db.Close()
+	}
 
 	walkDirectoryTree(cfg)
-	saveToDB(db, cfg.logging)
+	if !*cfg.nodb {
+		saveToDB(db, cfg.logging)
+	}
 
 	timeEnd := time.Now()
 	if *cfg.timming {
