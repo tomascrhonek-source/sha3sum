@@ -2,3 +2,4 @@
 ./sha3sum.exe
 ./sha3sum
 build/sha3sum.deb
+build/sha3sum/usr/bin/sha3sum
