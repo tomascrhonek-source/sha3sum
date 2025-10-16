@@ -1,3 +1,4 @@
 config.yaml
 sha3sum.exe
 sha3sum
+build/herons_sha3sum.deb
