@@ -37,6 +37,7 @@ func defaults() {
 func configure() config {
 	viper.SetConfigName("sha3sum")
 	viper.SetConfigType("yaml")
+	viper.AddConfigPath("/etc/")
 	viper.AddConfigPath("$HOME/.config/")
 
 	err := viper.ReadInConfig()
