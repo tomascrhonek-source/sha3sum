@@ -5,6 +5,8 @@ sha3sum uses PostgreSQL database for store the sums of the files. This is import
 
 You can enable threading for computing sha3 in parallel, usefull for big files and fast storage.
 
+Together with the package, a systemd service sha3sum.service and sha3sum.timer are installed. Adjust the regular execution time and activate the timer if you want.
+
 The database config is in file ~/.config/sha3sum.yaml. You can change it in the code (config.go). Feel free to do.
 
     database:
