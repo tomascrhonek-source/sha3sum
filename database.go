@@ -26,6 +26,8 @@ func dbConnect(cfg config) *sql.DB {
 		log.Fatal(err)
 	}
 
+	createTable(db, cfg.logging)
+
 	return db
 }
 
@@ -51,4 +53,21 @@ func saveToDB(db *sql.DB, logging *bool) {
 		}
 		return true
 	})
+}
+
+func createTable(db *sql.DB, logging *bool) {
+	sql := `CREATE TABLE IF NOT EXISTS public.sha3sum (
+    id bigserial NOT NULL,
+    path character varying NOT NULL,
+    size integer NOT NULL,
+    sum character varying NOT NULL,
+    "time" timestamp without time zone DEFAULT now() NOT NULL
+	);`
+	_, err := db.Exec(sql)
+	if err != nil {
+		log.Println("Cannot create table:", err)
+	}
+	if *logging {
+		log.Println("Table created")
+	}
 }
